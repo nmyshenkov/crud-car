@@ -1,14 +1,15 @@
 package db
 
 import (
+	"crud-car/cars"
 	"database/sql"
-	"private/crud-car/cars"
 )
 
+// SelectOne - функция запроса на получение машины по идентификатору
 func SelectOne(db *sql.DB, id int64) (cars.Car, error) {
 	var c cars.Car
 
-	err := db.QueryRow("SELECT company, model, capacity, create_time FROM cars WHERE id = ?", id).Scan(&c.Company, &c.Model, &c.Capacity, &c.CreateTime)
+	err := db.QueryRow("SELECT id, company, model, capacity, create_time FROM cars WHERE id = ?", id).Scan(&c.ID, &c.Company, &c.Model, &c.Capacity, &c.CreateTime)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return c, nil
@@ -18,10 +19,11 @@ func SelectOne(db *sql.DB, id int64) (cars.Car, error) {
 	return c, nil
 }
 
-func Select(db *sql.DB) ([]cars.Car, error) {
+// Select - функция запроса на получения списка машин
+func Select(db *sql.DB, limit, offset int64) ([]cars.Car, error) {
 	var res []cars.Car
 
-	rows, err := db.Query("SELECT company, model, capacity, create_time FROM cars")
+	rows, err := db.Query("SELECT id, company, model, capacity, create_time FROM cars LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return res, nil
@@ -31,7 +33,7 @@ func Select(db *sql.DB) ([]cars.Car, error) {
 
 	for rows.Next() {
 		var c cars.Car
-		if err := rows.Scan(&c.Company, &c.Model, &c.Capacity, &c.CreateTime); err != nil {
+		if err := rows.Scan(&c.ID, &c.Company, &c.Model, &c.Capacity, &c.CreateTime); err != nil {
 			return res, err
 		}
 		res = append(res, c)

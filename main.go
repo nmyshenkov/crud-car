@@ -1,45 +1,59 @@
 package main
 
 import (
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
+	"context"
+	"crud-car/api"
+	"crud-car/db"
 	"log"
 	"net/http"
-	"private/crud-car/api"
+	"os"
+	"os/signal"
+	"time"
 )
-
-func InitDB(dsn string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", dsn)
-	// db, err := sql.Open("mysql", )
-	if err != nil {
-		return nil, err
-	}
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
-}
 
 func main() {
 
-	var dsn = "username:password@tcp(127.0.0.1:3306)/vehicals"
+	// Setting up signal capturing
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
 
-	db, err := InitDB(dsn)
+	dbconn, err := db.InitDB(db.DSN)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	defer db.Close()
+	defer func() {
+		_ = dbconn.Close()
+	}()
 
-	m := api.Init(db)
+	m := api.Init(dbconn)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/get", m.Get)
-	mux.HandleFunc("/create", m.Create)
-	mux.HandleFunc("/update", m.Update)
-	mux.HandleFunc("/list", m.List)
-	mux.HandleFunc("/delete", m.Delete)
+	router := http.NewServeMux()
+	router.HandleFunc("/get", m.Get)
+	router.HandleFunc("/create", m.Create)
+	router.HandleFunc("/update", m.Update)
+	router.HandleFunc("/list", m.List)
+	router.HandleFunc("/delete", m.Delete)
 
-	log.Println("Starting server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	addr := ":8080"
+
+	log.Println("Starting server on", addr)
+
+	server := &http.Server{Addr: addr, Handler: router}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on %s: %v\n", addr, err)
+		}
+	}()
+
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Shotdown error: %v\n", err)
+	}
+
+	log.Println("Server stopped")
 }

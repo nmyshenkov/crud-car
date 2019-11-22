@@ -1,10 +1,11 @@
 package api
 
 import (
+	"crud-car/cars"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
-	"private/crud-car/cars"
 )
 
 func setResult(w http.ResponseWriter, data []cars.Car) {
@@ -28,4 +29,18 @@ func setError(w http.ResponseWriter, str string) {
 		log.Println(err)
 	}
 	return
+}
+
+func checkHttpPost(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		var e cars.Error
+		e.Error = MethodNotAllow
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		if err := json.NewEncoder(w).Encode(e); err != nil {
+			log.Println(err)
+		}
+		log.Println(e.Error)
+		return errors.New(e.Error)
+	}
+	return nil
 }

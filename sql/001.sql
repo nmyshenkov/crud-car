@@ -1,4 +1,4 @@
-create database vehicals;
+CREATE DATABASE vehicals;
 
 CREATE TABLE `vehicals`.`cars` (
     `id` bigint NOT NULL AUTO_INCREMENT,
